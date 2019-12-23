@@ -3,6 +3,12 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# sensitive data
+token.txt 
+
+# subtitles
+*.srt
+
 # C extensions
 *.so
 
