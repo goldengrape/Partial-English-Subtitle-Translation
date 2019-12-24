@@ -90,6 +90,8 @@ def longestSubstring(str1,str2):
 def get_trans(word_trans_from_dict, word_trans_from_translator, sentence_trans):
     # 句子中的单词含义, 如果没有公共的, 就返回查到的词
     match=longestSubstring(sentence_trans,word_trans_from_dict).replace('\n',"").replace(" ","")
+    if len(match)==len("了"):
+        match="" # 如果只有一个字的解释, 就不要了
     if match=="":
         return word_trans_from_translator.replace("\n", "")
     else:
@@ -186,7 +188,7 @@ def process_sub(sub_filename, output_filename, dict_filename, token_filename):
         token=f.read()
     sdict=DictCsv(dict_filename)
     
-    for idx, line in enumerate(subs[:60]):
+    for idx, line in enumerate(subs):
         s=line.text
         line.text=add_trans_to_sentence(s, sdict, token)
     subs.save(output_filename)
@@ -208,8 +210,18 @@ def process_sub(sub_filename, output_filename, dict_filename, token_filename):
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Process subtitle.')
-    parser.add_argument('-i', '--input', dest="input_filename")
-    parser.add_argument('-o', '--output', dest="output_filename")
+    parser.add_argument('-i', '--input', dest="input_filename", help="需要处理的英文字幕文件")
+    parser.add_argument('-o', '--output', dest="output_filename", help='输出文件')
+#     parser.add_argument('-include', nargs='?', dest="include tag", 
+#                         help='生词的定义: 包含哪些标记, 用空格隔开, 例如 toelf gre ielts')
+#     parser.add_argument('-exclude', nargs='?', dest='exclude tag',
+#                         help='生词的定义: 除外哪些标记, 用空格隔开, 例如 zk gk cet4')
+#     parser.add_argument('-collins', nargs='?',dest='collins_threshold', type=int, 
+#                         help='collins星级', default=2)
+#     parser.add_argument('-bnc', nargs='?', dest='bnc_threshold', type=int,
+#                        help='collins星级', default=)
+#     parser.add_argument('-frq', nargs='?', dest='frq_threshold', type=int)
+
     args = parser.parse_args()
 
     process_sub(args.input_filename, 
