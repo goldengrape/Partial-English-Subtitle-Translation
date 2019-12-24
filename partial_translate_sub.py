@@ -6,7 +6,7 @@
 
 # 需要使用ECDICT https://github.com/skywind3000/ECDICT/ 请从该网站下载ecdict.csv和stardict.py文件
 
-# In[1]:
+# In[ ]:
 
 
 import pysubs2
@@ -109,24 +109,28 @@ def get_trans(word_trans_from_dict, word_trans_from_translator, sentence_trans):
 # In[5]:
 
 
-def word_unknown(word_query):
+def word_unknown(word_query, word_judge):
     if not(word_query):
-        return False
+        return False #查不到就算了
     # 是否认识?
-    tag_check={'zk':False,'cet4':False, 'cet6':False, 'toelf':True ,"gre":True,'ielts':True}
-    collins_threshold=2; collins_default=True
-    bnc_threshold=5000; bnc_default=True
-    frq_threshold=5000; frq_default=True
+    include_tag=word_judge["include_tag"] 
+    exclude_tag=word_judge["exclude_tag"]
+
+
+    collins_threshold=word_judge["collins_threshold"]; collins_default=True
+    bnc_threshold=word_judge["bnc_threshold"]; bnc_default=True
+    frq_threshold=word_judge["frq_threshold"]; frq_default=True
     
     # check tag
-    chk1=True
-    chk2=True
-    for (key, value) in tag_check.items():
-        if not(value):
-            chk1 = chk1 and not((key in word_query['tag']) if word_query['tag'] else True) 
-        else: 
-            chk2 = chk2 or ((key in word_query['tag']) if word_query['tag'] else True)
-    tag_chk = chk1 and chk2
+    include_list=include_tag.lower().split()
+    exclude_list=exclude_tag.lower().split()
+    if word_query['tag']: # 如果该单词有tag标记
+        word_tag=word_query['tag'] 
+        tag_chk=(not(any(e in word_tag for e in exclude_list)) 
+                 and 
+                 any(i in word_tag for i in include_list))    
+    else:
+        tag_chk=True  #如果该单词没有tag标记, 默认为
     
     # check collins
     collins_chk = (word_query['collins']<=collins_threshold) if word_query['collins']>=0 else collins_default
@@ -151,14 +155,14 @@ def word_unknown(word_query):
 # In[6]:
 
 
-def add_trans_to_sentence(s, sdict, token, filter_word=True):
+def add_trans_to_sentence(s, sdict, token, word_judge, filter_word=True):
     sentence=s.replace("\\N", " ").replace("\n", " ")
     words=sentence.split()
     words_to_trans={}
     for word in words:
         word_query=sdict.query(word) if sdict.query(word) else sdict.query('unknown')   
         if filter_word:
-            if word_unknown(word_query):
+            if word_unknown(word_query,word_judge):
                 words_to_trans[word]=word_query['translation']
         else:
             words_to_trans[word]=word_query['translation']
@@ -179,10 +183,12 @@ def add_trans_to_sentence(s, sdict, token, filter_word=True):
 
 # 合在一起, 处理整个字幕文件
 
-# In[7]:
+# In[11]:
 
 
-def process_sub(sub_filename, output_filename, dict_filename, token_filename):
+def process_sub(sub_filename, output_filename, word_judge,
+                dict_filename, token_filename
+               ):
     subs = pysubs2.load(sub_filename, encoding="utf-8")
     with open(token_filename, 'r') as f:
         token=f.read()
@@ -190,13 +196,13 @@ def process_sub(sub_filename, output_filename, dict_filename, token_filename):
     
     for idx, line in enumerate(subs):
         s=line.text
-        line.text=add_trans_to_sentence(s, sdict, token)
+        line.text=add_trans_to_sentence(s, sdict, token, word_judge)
     subs.save(output_filename)
 
 
 # 从命令行输入参数处理
 
-# In[8]:
+# In[12]:
 
 
 # dict_filename="ecdict.csv"
@@ -205,27 +211,44 @@ def process_sub(sub_filename, output_filename, dict_filename, token_filename):
 # output_filename="my_subtitles_edited.srt"
 
 
-# In[9]:
+# In[ ]:
 
 
 if __name__=='__main__':
     parser = argparse.ArgumentParser(description='Process subtitle.')
     parser.add_argument('-i', '--input', dest="input_filename", help="需要处理的英文字幕文件")
     parser.add_argument('-o', '--output', dest="output_filename", help='输出文件')
-#     parser.add_argument('-include', nargs='?', dest="include tag", 
-#                         help='生词的定义: 包含哪些标记, 用空格隔开, 例如 toelf gre ielts')
-#     parser.add_argument('-exclude', nargs='?', dest='exclude tag',
-#                         help='生词的定义: 除外哪些标记, 用空格隔开, 例如 zk gk cet4')
-#     parser.add_argument('-collins', nargs='?',dest='collins_threshold', type=int, 
-#                         help='collins星级', default=2)
-#     parser.add_argument('-bnc', nargs='?', dest='bnc_threshold', type=int,
-#                        help='collins星级', default=)
-#     parser.add_argument('-frq', nargs='?', dest='frq_threshold', type=int)
+    parser.add_argument('-include', nargs='?', dest="include_tag", type=str,
+                        help='生词的定义: 包含哪些标记, 用空格隔开, 例如 cet6 toelf gre ielts',
+                       default="cet6 gre ielts")
+    parser.add_argument('-exclude', nargs='?', dest='exclude_tag', type=str,
+                        help='生词的定义: 除外哪些标记, 用空格隔开, 例如 zk gk cet4',
+                       default="zk gk cet4")
+    parser.add_argument('-collins', nargs='?',dest='collins_threshold', type=int, 
+                        help='collins星级', default=2)
+    parser.add_argument('-bnc', nargs='?', dest='bnc_threshold', type=int,
+                       help='英国国家语料库词频顺序bnc, 越大越难', default=5000)
+    parser.add_argument('-frq', nargs='?', dest='frq_threshold', type=int,
+                       help='当代语料库词频顺序frq, 越大越难', default=5000)
 
     args = parser.parse_args()
-
+    word_judge={}
+    word_judge["include_tag"]=args.include_tag 
+    word_judge["exclude_tag"]=args.exclude_tag 
+    word_judge["collins_threshold"]=args.collins_threshold 
+    word_judge["bnc_threshold"]=args.bnc_threshold 
+    word_judge['frq_threshold']=args.frq_threshold 
+    
     process_sub(args.input_filename, 
                 args.output_filename, 
+                word_judge,
                 dict_filename="ecdict.csv", 
-                token_filename='token.txt')
+                token_filename='token.txt',
+               )
+
+
+# In[ ]:
+
+
+
 
