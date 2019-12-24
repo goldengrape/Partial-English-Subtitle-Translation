@@ -5,6 +5,7 @@ __pycache__/
 
 # sensitive data
 token.txt 
+translated_word_list.txt
 
 # subtitles
 *.srt

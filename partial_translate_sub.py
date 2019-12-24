@@ -6,7 +6,7 @@
 
 # 需要使用ECDICT https://github.com/skywind3000/ECDICT/ 请从该网站下载ecdict.csv和stardict.py文件
 
-# In[ ]:
+# In[1]:
 
 
 import pysubs2
@@ -19,6 +19,8 @@ from difflib import SequenceMatcher
 import itertools
 import string
 import argparse
+import math
+
 
 
 # depend on https://github.com/skywind3000/ECDICT/
@@ -89,11 +91,13 @@ def longestSubstring(str1,str2):
 
 def get_trans(word_trans_from_dict, word_trans_from_translator, sentence_trans):
     # 句子中的单词含义, 如果没有公共的, 就返回查到的词
-    match=longestSubstring(sentence_trans,word_trans_from_dict).replace('\n',"").replace(" ","")
-    if len(match)==len("了"):
-        match="" # 如果只有一个字的解释, 就不要了
+    match=longestSubstring(sentence_trans,word_trans_from_dict)
+    match=re.sub('[a-zA-Z0-9.\n ]*',"",match) #只留下中文
+    exclude_list=["要","着","了","过","来","的","是","说","去","到","给","做","有","看","操"]
+    if any(match == e for e in exclude_list):
+        match=""
     if match=="":
-        return word_trans_from_translator.replace("\n", "")
+        return re.sub('[a-zA-Z0-9.\n ]*',"",word_trans_from_translator)
     else:
         return match
 
@@ -109,9 +113,13 @@ def get_trans(word_trans_from_dict, word_trans_from_translator, sentence_trans):
 # In[5]:
 
 
-def word_unknown(word_query, word_judge):
+def word_unknown(word_query, word_judge,exclude_word_list):
     if not(word_query):
         return False #查不到就算了
+    # check in exclude_word_list
+    if word_query['word'] in exclude_word_list:
+        return False
+    
     # 是否认识?
     include_tag=word_judge["include_tag"] 
     exclude_tag=word_judge["exclude_tag"]
@@ -140,6 +148,8 @@ def word_unknown(word_query, word_judge):
     
     # check frq
     frq_chk=(word_query['frq']>=frq_threshold) if word_query['bnc']>0 else frq_default
+    
+    
 
     return (tag_chk+collins_chk+bnc_chk+frq_chk) >=3
 
@@ -155,14 +165,14 @@ def word_unknown(word_query, word_judge):
 # In[6]:
 
 
-def add_trans_to_sentence(s, sdict, token, word_judge, filter_word=True):
+def add_trans_to_sentence(s, sdict, token, word_judge, exclude_word_list, filter_word=True):
     sentence=s.replace("\\N", " ").replace("\n", " ")
     words=sentence.split()
     words_to_trans={}
     for word in words:
         word_query=sdict.query(word) if sdict.query(word) else sdict.query('unknown')   
         if filter_word:
-            if word_unknown(word_query,word_judge):
+            if word_unknown(word_query,word_judge,exclude_word_list):
                 words_to_trans[word]=word_query['translation']
         else:
             words_to_trans[word]=word_query['translation']
@@ -178,7 +188,7 @@ def add_trans_to_sentence(s, sdict, token, word_judge, filter_word=True):
         for (word, meaning) in word_with_trans.items():
             meaning=word+"("+meaning+")"
             s=s[0:s.find(word)]+meaning+s[(s.find(word)+len(word)):]
-    return s
+    return s, list(words_to_trans.keys())
 
 
 # 合在一起, 处理整个字幕文件
@@ -194,9 +204,17 @@ def process_sub(sub_filename, output_filename, word_judge,
         token=f.read()
     sdict=DictCsv(dict_filename)
     
+    try:
+        with open(word_judge['exclude_word_filename'], 'r') as f:
+            exclude_word_list=f.read()
+    except:
+        exclude_word_list=""
+    
+    words_translated=[]
     for idx, line in enumerate(subs):
         s=line.text
-        line.text=add_trans_to_sentence(s, sdict, token, word_judge)
+        line.text, w_t=add_trans_to_sentence(s, sdict, token, word_judge, exclude_word_list)
+        words_translated.append(w_t)
     subs.save(output_filename)
 
 
@@ -230,6 +248,9 @@ if __name__=='__main__':
                        help='英国国家语料库词频顺序bnc, 越大越难', default=5000)
     parser.add_argument('-frq', nargs='?', dest='frq_threshold', type=int,
                        help='当代语料库词频顺序frq, 越大越难', default=5000)
+    parser.add_argument('-e', '--exclude_word', nargs='?', dest='exclude_word_filename', 
+                        type=str, help='需要排除的单词列表, txt文件, 每行一个单词', 
+                        default="exclude_word_list.txt")
 
     args = parser.parse_args()
     word_judge={}
@@ -238,13 +259,24 @@ if __name__=='__main__':
     word_judge["collins_threshold"]=args.collins_threshold 
     word_judge["bnc_threshold"]=args.bnc_threshold 
     word_judge['frq_threshold']=args.frq_threshold 
+    word_judge['exclude_word_filename']=args.exclude_word_filename
+    
     
     process_sub(args.input_filename, 
                 args.output_filename, 
                 word_judge,
                 dict_filename="ecdict.csv", 
-                token_filename='token.txt',
+                token_filename='token.txt'
                )
+
+
+# In[4]:
+
+
+# dict_filename="ecdict.csv"
+# sdict=DictCsv(dict_filename)
+# with open("exclude_word_list.txt", 'r') as f:
+#     e=f.read()
 
 
 # In[ ]:
