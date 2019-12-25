@@ -8,7 +8,7 @@ token.txt
 translated_word_list.txt
 
 # subtitles
-*.srt
+test/
 
 # C extensions
 *.so
