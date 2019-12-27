@@ -7,8 +7,10 @@ __pycache__/
 token.txt 
 translated_word_list.txt
 
-# subtitles
+
+# testdata
 test/
+未命名.ipynb
 
 # C extensions
 *.so

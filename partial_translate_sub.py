@@ -32,7 +32,7 @@ import math
 # In[2]:
 
 
-def tranlate(source, token):
+def translate(source, token):
 
     import requests
     import json
@@ -149,9 +149,11 @@ def word_unknown(word_query, word_judge,exclude_word_list):
     # check frq
     frq_chk=(word_query['frq']>=frq_threshold) if word_query['bnc']>0 else frq_default
     
+    # check word length
+    length_chk=len(word_query['word']) >= word_judge['word_length']
     
 
-    return (tag_chk+collins_chk+bnc_chk+frq_chk) >=3
+    return ((tag_chk+collins_chk+bnc_chk+frq_chk) >=3 or length_chk)
 
 
 # 于是就一句一句地处理呗.
@@ -166,7 +168,7 @@ def word_unknown(word_query, word_judge,exclude_word_list):
 
 
 def add_trans_to_sentence(s, sdict, token, word_judge, exclude_word_list, filter_word=True):
-    sentence=s.replace("\\N", " ").replace("\n", " ")
+    sentence=s.replace("\\N", " ").replace("\n", " ").replace("."," ").replace(",", " ")
     words=sentence.split()
     words_to_trans={}
     for word in words:
@@ -179,7 +181,7 @@ def add_trans_to_sentence(s, sdict, token, word_judge, exclude_word_list, filter
     if words_to_trans: # if words_to_trans is not empty
         to_trans_list=[[sentence], words_to_trans.keys()]
         to_trans_list=list(itertools.chain(*to_trans_list))
-        trans=tranlate(to_trans_list,token)
+        trans=translate(to_trans_list,token)
         sentence_trans=trans[0]
         word_with_trans={}
         for idx, word in enumerate(words_to_trans.keys()):
@@ -251,7 +253,11 @@ if __name__=='__main__':
     parser.add_argument('-e', '--exclude_word', nargs='?', dest='exclude_word_filename', 
                         type=str, help='需要排除的单词列表, txt文件, 每行一个单词', 
                         default="exclude_word_list.txt")
+    parser.add_argument('-l', '--word_length', nargs='?', dest='word_length', 
+                        type=int, help='一定长度以上的单词将默认提示', 
+                        default=10)
 
+    
     args = parser.parse_args()
     word_judge={}
     word_judge["include_tag"]=args.include_tag 
@@ -260,7 +266,7 @@ if __name__=='__main__':
     word_judge["bnc_threshold"]=args.bnc_threshold 
     word_judge['frq_threshold']=args.frq_threshold 
     word_judge['exclude_word_filename']=args.exclude_word_filename
-    
+    word_judge['word_length']=args.word_length
     
     process_sub(args.input_filename, 
                 args.output_filename, 
