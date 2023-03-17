@@ -1,1 +1,1 @@
-pysub2 >=0.2.4
+openai 
