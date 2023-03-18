@@ -165,7 +165,7 @@ def main():
     with open(args.input_filename, "r", encoding="utf-8") as f:
         input_subtitle = f.read()
 
-    output_subtitle = process_subtitle(input_subtitle,word_judge,args.target_language)
+    output_subtitle = process_subtitle(input_subtitle,args.difficulty,args.target_language)
 
     with open(args.output_filename, "w", encoding="utf-8") as f:
         f.write(output_subtitle)
