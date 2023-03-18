@@ -4,15 +4,8 @@ import argparse
 import os 
 import time 
 from stardict import DictCsv
+from utils import is_difficult_word, exclude_words
 
-exclude_words=set(
-    ['updated', 'marginr', 'timing', 'primarycolour', 'scaley', 'name', 'play', 'type', 'encoding', 'scaledborderandshadow', 'strikeout', 'bold', 'styles', 'fontsize', 'wrapstyle', 'fontname', 'outlinecolour', 'alignment', 'italic', 'original', 'update', 'shadow', 'text', 'end', 'underline', 'borderstyle', 'marginl', 'title', 'details', 'timer', 'collisions', 'normal', 'script', 'by', 'point', 'v4', 'start', 'dialogue', 'editing', 'translation', 'defaultarial', 'format', 'backcolour', 'events', 'marginv', 'resx', 'outline', 'default', 'resy', 'synch', 'style', 'scalex', 'effect', 'secondarycolour', 'spacing', 'angle', 'layer',
-     'am','is','are','was','were','been','have','has',
-     'did','do','does','done','doing','will','would','shall','should','may','might','must','can','could','ought','need','dare','had','having',
-     'go','goes','going','gone','get','gets','getting','got','gotten',
-     'went','come','comes','coming','came',
-     ]
-    )
 
 def query_gpt3(prompt):
     response = openai.ChatCompletion.create(
@@ -65,8 +58,10 @@ def identify_rare_words(text, word_judge):
             ):
             continue
 
-        word_query=sdict.query(word) if sdict.query(word) else sdict.query('unknown')   
-        if word_unknown(word_query, word_judge):
+        # word_query=sdict.query(word) if sdict.query(word) else sdict.query('unknown')   
+        # if word_unknown(word_query, word_judge):
+        #     rare_words.append(word)
+        if is_difficult_word(word,word_judge):
             rare_words.append(word)
     return rare_words
 
@@ -111,6 +106,7 @@ def process_subtitle(text,word_judge,target_language):
     # translations = {}
     annotated_text = text
     for word in rare_words:
+        word_but_no_translate=rf'^(?=.*\b{word}\b)(?!.*\b{word}\().*$'
         for i in range(5):
             # 一句话里如果有多个生词，则需要处理多次
             sentences_with_word_but_no_translate = re.findall(rf'.*{word}[^\(]+.*', annotated_text, flags=re.IGNORECASE)
@@ -155,14 +151,15 @@ def create_parser():
 def main():
     parser = create_parser()
     args = parser.parse_args()
-    word_judge={}
-    word_judge["include_tag"]=args.include_tag 
-    word_judge["exclude_tag"]=args.exclude_tag 
-    word_judge["collins_threshold"]=args.collins_threshold 
-    word_judge["bnc_threshold"]=args.bnc_threshold 
-    word_judge['frq_threshold']=args.frq_threshold 
-    word_judge['exclude_word_filename']=args.exclude_word_filename
-    word_judge['word_length']=args.word_length
+    # word_judge={}
+    # word_judge["include_tag"]=args.include_tag 
+    # word_judge["exclude_tag"]=args.exclude_tag 
+    # word_judge["collins_threshold"]=args.collins_threshold 
+    # word_judge["bnc_threshold"]=args.bnc_threshold 
+    # word_judge['frq_threshold']=args.frq_threshold 
+    # word_judge['exclude_word_filename']=args.exclude_word_filename
+    # word_judge['word_length']=args.word_length
+    word_judge=35
 
     with open(args.input_filename, "r", encoding="utf-8") as f:
         input_subtitle = f.read()
