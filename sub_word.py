@@ -1,14 +1,10 @@
 import openai
 import re
-from collections import defaultdict
-from functools import partial
 import argparse
 import os 
 import time 
 from stardict import DictCsv
 
-# Set your GPT-3 API key
-openai.api_key = os.environ.get("OPENAI_API_KEY")
 
 def query_gpt3(prompt):
     response = openai.ChatCompletion.create(
@@ -62,17 +58,17 @@ def identify_rare_words(text, word_judge):
             rare_words.append(word)
     return rare_words
 
-def clean_result(result):
-    # 如果是x, 如果长度大于6个汉字，或者显示无法翻译，则返回空字符串
-    if ((result.lower() == "x") or 
-       (len(result) > 10) or 
-       ("无法翻译" in result)
-       ):
-        return ""
+def clean_result(result,N=10):
     # 去除括号内的内容
     result = re.sub(r'\([^)]*\)', '', result)
     # 去掉标点和空格
-    result = re.sub(r'[\s.,。，]+', '', result)
+    result = re.sub(r'[\s.,。，！]+', '', result)
+    # 如果是x, 如果长度大于N个汉字，或者显示无法翻译，则返回空字符串
+    if ((result.lower() == "x") or 
+       (len(result) > N) or 
+       ("无法翻译" in result)
+       ):
+        return ""
     return result
 
 def translate_word(word, context, target_language="Chinese"):
@@ -82,6 +78,9 @@ def translate_word(word, context, target_language="Chinese"):
     {context}
     ----
     The response must be AS CONCISE AS POSSIBLE and NOT include any pinyin. 
+    The response must be in the form of a single word or a short phrase.
+    The response must be in {target_language}.
+    The response must only be the meaning of the word in the sentence, not the entire sentence's meaning.
     If unable to translate, please return 'x'.
     """
     try:
@@ -93,28 +92,24 @@ def translate_word(word, context, target_language="Chinese"):
     print(f"Translation of '{word}': {result}")
     return result
 
-def annotate_translation(sentence, translations):
-    annotated = sentence
-    for word, translation in translations.items():
-        # 如果translation为空，则跳过
-        if translation == "":
-            continue
-        annotated = annotated.replace(word, f"{word}({translation})")
-    return annotated
-
 def process_subtitle(text,word_judge,target_language):
     rare_words = identify_rare_words(text,word_judge)
-    translations = {}
-    for word in rare_words:
-        for sentence in re.finditer(rf"\b{word}\b", text, flags=re.IGNORECASE):
-            context = sentence.group()
-            translations[word] = translate_word(word, context, target_language)
-    
+    # print(f"Rare words: {rare_words}")
+    # translations = {}
     annotated_text = text
-    for sentence in re.findall(r'(?m)^\d{1,4}\n(?:\d{2}:\d{2}:\d{2}.\d{3} --> \d{2}:\d{2}:\d{2}.\d{3}\n)(.*?)$', text, flags=re.MULTILINE):
-        annotated_sentence = annotate_translation(sentence, translations)
-        annotated_text = annotated_text.replace(sentence, annotated_sentence)
-        print(f"Annotated sentence: {annotated_sentence}")
+    for word in rare_words:
+        for i in range(5):
+            # 一句话里如果有多个生词，则需要处理多次
+            sentences_with_word_but_no_translate = re.findall(rf'.*{word}[^\(]+.*', annotated_text, flags=re.IGNORECASE)
+            if len(sentences_with_word_but_no_translate) == 0:
+                break
+            sentence = sentences_with_word_but_no_translate[0]
+            translation = translate_word(word, sentence, target_language)
+            if translation == "":
+                continue
+            annotated_sentence = sentence
+            annotated_sentence = annotated_sentence.replace(word, f"{word}({translation})")
+            annotated_text = annotated_text.replace(sentence, annotated_sentence)
 
     return annotated_text
 
@@ -167,4 +162,6 @@ def main():
     print(f"Processed subtitle saved to {args.output_filename}")
 
 if __name__ == "__main__":
+    # Set your GPT-3 API key
+    openai.api_key = os.environ.get("OPENAI_API_KEY")
     main()

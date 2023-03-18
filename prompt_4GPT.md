@@ -36,3 +36,34 @@ response = openai.Embedding.create(
     engine="text-similarity-davinci-001")
 将embedding的结果与collins,oxford,tag,frq字段合并存储进一个Pandas Dataframe并使用pandas的to_pickle来保存。
 要求代码简洁、结构化、以函数式编程风格撰写，最终以main()调用
+
+* [streamlit_app.py](streamlit_app.py)
+  
+用streamlit写一个web app。基于如下命令行程序
+```python
+parser = create_parser()
+args = parser.parse_args()
+word_judge={}
+word_judge["include_tag"]=args.include_tag 
+word_judge["exclude_tag"]=args.exclude_tag 
+word_judge["collins_threshold"]=args.collins_threshold 
+word_judge["bnc_threshold"]=args.bnc_threshold 
+word_judge['frq_threshold']=args.frq_threshold 
+word_judge['exclude_word_filename']=args.exclude_word_filename
+word_judge['word_length']=args.word_length
+
+with open(args.input_filename, "r", encoding="utf-8") as f:
+    input_subtitle = f.read()
+
+output_subtitle = process_subtitle(input_subtitle,word_judge,args.target_language)
+
+with open(args.output_filename, "w", encoding="utf-8") as f:
+    f.write(output_subtitle)
+```
+请使用streamlit的download_button，
+举例：
+Download a string as a file:
+```python
+text_contents = '''This is some text'''
+st.download_button('Download some text', text_contents)
+```
