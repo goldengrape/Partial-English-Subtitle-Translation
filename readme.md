@@ -6,6 +6,12 @@
 
 python sub_word.py -i test/test.srt -o test/output.srt -include "cet6"
 
+* 网页版
+
+https://goldengrape-subword.streamlit.app/
+
+
+
 * 自定义“生词”
 -include 应当包含的标签, 用空格隔开, 例如cet6 toelf gre ielts
 -exclude 应当除外的标签, 例如zk gk (中考 高考)
