@@ -86,6 +86,7 @@ def translate_word(word, context, target_language="Chinese"):
     try:
         result = query_gpt3(prompt)
     except:
+        print("GPT-3 API error, retrying in 30 seconds...")
         time.sleep(30)
         result = query_gpt3(prompt)
     result=clean_result(result)
