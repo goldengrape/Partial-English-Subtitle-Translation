@@ -126,24 +126,25 @@ def create_parser():
     parser = argparse.ArgumentParser(description="A subtitle processing program that annotates rare English words with their Chinese translations.")
     parser.add_argument('-i', '--input', dest="input_filename", help="需要处理的英文字幕文件")
     parser.add_argument('-o', '--output', dest="output_filename", help='输出文件')
-    parser.add_argument('-include', nargs='?', dest="include_tag", type=str,
-                        help='生词的定义: 包含哪些标记, 用空格隔开, 例如 cet6 toelf gre ielts',
-                       default="cet6 gre ielts")
-    parser.add_argument('-exclude', nargs='?', dest='exclude_tag', type=str,
-                        help='生词的定义: 除外哪些标记, 用空格隔开, 例如 zk gk cet4',
-                       default="zk gk cet4")
-    parser.add_argument('-collins', nargs='?',dest='collins_threshold', type=int, 
-                        help='collins星级', default=2)
-    parser.add_argument('-bnc', nargs='?', dest='bnc_threshold', type=int,
-                       help='英国国家语料库词频顺序bnc, 越大越难', default=5000)
-    parser.add_argument('-frq', nargs='?', dest='frq_threshold', type=int,
-                       help='当代语料库词频顺序frq, 越大越难', default=5000)
-    parser.add_argument('-e', '--exclude_word', nargs='?', dest='exclude_word_filename', 
-                        type=str, help='需要排除的单词列表, txt文件, 每行一个单词', 
-                        default="exclude_word_list.txt")
-    parser.add_argument('-l', '--word_length', nargs='?', dest='word_length', 
-                        type=int, help='一定长度以上的单词将默认提示', 
-                        default=10)
+    parser.add_argument("-d", "--difficulty", dest="difficulty", type=int, help="难度等级, 数字越小越难", default=35)
+    # parser.add_argument('-include', nargs='?', dest="include_tag", type=str,
+    #                     help='生词的定义: 包含哪些标记, 用空格隔开, 例如 cet6 toelf gre ielts',
+    #                    default="cet6 gre ielts")
+    # parser.add_argument('-exclude', nargs='?', dest='exclude_tag', type=str,
+    #                     help='生词的定义: 除外哪些标记, 用空格隔开, 例如 zk gk cet4',
+    #                    default="zk gk cet4")
+    # parser.add_argument('-collins', nargs='?',dest='collins_threshold', type=int, 
+    #                     help='collins星级', default=2)
+    # parser.add_argument('-bnc', nargs='?', dest='bnc_threshold', type=int,
+    #                    help='英国国家语料库词频顺序bnc, 越大越难', default=5000)
+    # parser.add_argument('-frq', nargs='?', dest='frq_threshold', type=int,
+    #                    help='当代语料库词频顺序frq, 越大越难', default=5000)
+    # parser.add_argument('-e', '--exclude_word', nargs='?', dest='exclude_word_filename', 
+    #                     type=str, help='需要排除的单词列表, txt文件, 每行一个单词', 
+    #                     default="exclude_word_list.txt")
+    # parser.add_argument('-l', '--word_length', nargs='?', dest='word_length', 
+    #                     type=int, help='一定长度以上的单词将默认提示', 
+    #                     default=10)
     parser.add_argument('-t', '--target_language', nargs='?', dest='target_language',
                         type=str, help='目标语言, 默认为中文', default="Simplified Chinese")
     return parser
@@ -159,7 +160,7 @@ def main():
     # word_judge['frq_threshold']=args.frq_threshold 
     # word_judge['exclude_word_filename']=args.exclude_word_filename
     # word_judge['word_length']=args.word_length
-    word_judge=35
+    word_judge=args.difficulty
 
     with open(args.input_filename, "r", encoding="utf-8") as f:
         input_subtitle = f.read()
