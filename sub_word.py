@@ -5,6 +5,14 @@ import os
 import time 
 from stardict import DictCsv
 
+exclude_words=set(
+    ['updated', 'marginr', 'timing', 'primarycolour', 'scaley', 'name', 'play', 'type', 'encoding', 'scaledborderandshadow', 'strikeout', 'bold', 'styles', 'fontsize', 'wrapstyle', 'fontname', 'outlinecolour', 'alignment', 'italic', 'original', 'update', 'shadow', 'text', 'end', 'underline', 'borderstyle', 'marginl', 'title', 'details', 'timer', 'collisions', 'normal', 'script', 'by', 'point', 'v4', 'start', 'dialogue', 'editing', 'translation', 'defaultarial', 'format', 'backcolour', 'events', 'marginv', 'resx', 'outline', 'default', 'resy', 'synch', 'style', 'scalex', 'effect', 'secondarycolour', 'spacing', 'angle', 'layer',
+     'am','is','are','was','were','been','have','has',
+     'did','do','does','done','doing','will','would','shall','should','may','might','must','can','could','ought','need','dare','had','having',
+     'go','goes','going','gone','get','gets','getting','got','gotten',
+     'went','come','comes','coming','came',
+     ]
+    )
 
 def query_gpt3(prompt):
     response = openai.ChatCompletion.create(
@@ -51,8 +59,12 @@ def identify_rare_words(text, word_judge):
     sdict=DictCsv("ecdict.csv")
     rare_words=[]
     for word in words:
-        if word.isdigit():
+        if ((word.isdigit()) or
+            (word.lower() in exclude_words) or
+            (len(word)<=2)
+            ):
             continue
+
         word_query=sdict.query(word) if sdict.query(word) else sdict.query('unknown')   
         if word_unknown(word_query, word_judge):
             rare_words.append(word)
