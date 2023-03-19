@@ -6,46 +6,32 @@ import time
 from utils import tokenize_word,is_difficult_word, exclude_words
 import pysubs2
 
+sleep_time = 60
 
 def query_gpt3(prompt):
-    response = openai.ChatCompletion.create(
-        model="gpt-3.5-turbo", 
-        messages=[{
-        "role": "user", 
-        "content": prompt}]
-        )
-    return response.choices[0].message.content.strip()
-
-def word_unknown(word_query, word_judge):
-    if word_query is None:
-        return False #查不到就算了 
-    
-    # 是否认识?
-    include_tag=word_judge["include_tag"] 
-    exclude_tag=word_judge["exclude_tag"]
-    collins_threshold=word_judge["collins_threshold"]; collins_default=True
-    bnc_threshold=word_judge["bnc_threshold"]; bnc_default=True
-    frq_threshold=word_judge["frq_threshold"]; frq_default=True
-    
-    # check tag
-    include_list=include_tag.lower().split()
-    exclude_list=exclude_tag.lower().split()
-    if word_query['tag']: # 如果该单词有tag标记
-        word_tag=word_query['tag'] 
-        tag_chk=(not(any(e in word_tag for e in exclude_list)) 
-                 and 
-                 any(i in word_tag for i in include_list))    
-    else:
-        tag_chk=True  #如果该单词没有tag标记, 默认为
-    # check collins
-    collins_chk = (word_query['collins']<=collins_threshold) if word_query['collins']>=0 else collins_default
-    # check bnc
-    bnc_chk=(word_query['bnc']>=bnc_threshold) if word_query['bnc']>0 else bnc_default
-    # check frq
-    frq_chk=(word_query['frq']>=frq_threshold) if word_query['bnc']>0 else frq_default
-    # check word length
-    length_chk=len(word_query['word']) >= word_judge['word_length']
-    return ((tag_chk+collins_chk+bnc_chk+frq_chk) >=3 or length_chk)
+    global sleep_time
+    while True:
+        try:
+            response = openai.ChatCompletion.create(
+                model="gpt-3.5-turbo", 
+                messages=[{
+                "role": "user", 
+                "content": prompt}]
+                )
+            answer=response.choices[0].message.content.strip()
+            time.sleep(1)
+            sleep_time = int(sleep_time/2)
+            sleep_time = max(sleep_time, 10)
+            break
+        except:
+            print(f"GPT-3 API error, retrying in {sleep_time} seconds...")
+            time.sleep(sleep_time)
+            sleep_time += 10
+            if sleep_time > 120:
+                print("GPT-3 API error, aborting...")
+                answer=""
+                break
+    return answer
 
 def identify_rare_words(text, word_judge):
     # words = re.findall(r'\b\w+\b', text)
@@ -77,7 +63,9 @@ def clean_result(result,N=10):
         return ""
     return result
 
-def translate_word(word, context, target_language="Chinese"):
+def translate_word(word, context, 
+                   target_language="Chinese",
+                    sleep_time=60):
     prompt = f"""
     Please give me the MOST APPROPRIATE {target_language} meaning of the word '{word}' IN this sentence: 
     ----
@@ -89,12 +77,7 @@ def translate_word(word, context, target_language="Chinese"):
     The response must only be the meaning of the word in the sentence, not the entire sentence's meaning.
     If unable to translate, please return 'x'.
     """
-    try:
-        result = query_gpt3(prompt)
-    except:
-        print("GPT-3 API error, retrying in 30 seconds...")
-        time.sleep(30)
-        result = query_gpt3(prompt)
+    result = query_gpt3(prompt)
     result=clean_result(result)
     # print(f"Translation of '{word}': {result}")
     return result
@@ -144,6 +127,7 @@ def create_parser():
 def main():
     parser = create_parser()
     args = parser.parse_args()
+    
 
     input_subs = pysubs2.load(args.input_filename, encoding="utf-8")
 
@@ -155,5 +139,8 @@ def main():
 
 if __name__ == "__main__":
     # Set your GPT-3 API key
+    # global sleep_time
+    # sleep_time=60
+
     openai.api_key = os.environ.get("OPENAI_API_KEY")
     main()
