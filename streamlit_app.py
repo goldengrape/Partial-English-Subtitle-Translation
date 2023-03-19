@@ -5,20 +5,20 @@ import pysubs2
 import tempfile
 import os
 from pathlib import Path
+from utils import lang_list
 
 
 st.title("字幕生词翻译器")
 
 col1, col2 = st.columns(2)
+input_file = col1.file_uploader("上传字幕文件", type=["srt"])
 openai_api_key = col2.text_input("OpenAI API Key", type="password")
+target_language = col2.selectbox("目标语言", lang_list("simplified chinese"))
+
 if openai_api_key:
     openai.api_key = openai_api_key
-input_file = col1.file_uploader("上传字幕文件", type=["srt"])
 
-st.markdown("NLTK词频等级")
-st.info("数字越小越难")
-difficulty = st.slider("", min_value=1, max_value=50, value=35, step=1)
-target_language = st.selectbox("目标语言", ["Simplified Chinese"])
+difficulty = st.slider("NLTK词频等级，数字越小越难", min_value=1, max_value=50, value=35, step=1)
 
 translate_button = st.button("翻译")
 if input_file and translate_button:
