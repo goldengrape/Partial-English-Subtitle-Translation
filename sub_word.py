@@ -5,6 +5,7 @@ import os
 import time 
 from utils import tokenize_word,is_difficult_word, exclude_words
 import pysubs2
+import json 
 
 sleep_time = 60
 
@@ -80,6 +81,45 @@ def translate_word(word, context,
     result = query_gpt3(prompt)
     result=clean_result(result)
     # print(f"Translation of '{word}': {result}")
+    return result
+
+def parse_json_from_text(text):
+    # 使用正则表达式匹配 JSON 字符串
+    match = re.search(r'{[^{}]*}', text, re.DOTALL)
+
+    if match:
+        # 提取 JSON 字符串部分
+        json_str = match.group()
+
+        # 解析 JSON 字符串成 Python 字典
+        data = json.loads(json_str)
+
+        return data
+    else:
+        print('未找到 JSON 字符串')
+        return None
+    
+
+def clean_json_result(result):
+    # 从result中提取出字典
+    dict=parse_json_from_text(result)
+    for key in dict.keys():
+        dict[key]=clean_result(dict[key])
+    return result
+
+def translate_rare_words_together(words, context, target_language="Chinese"):
+    prompt = f"""
+    Please give me the MOST APPROPRIATE {target_language} meaning of these words '{words}' IN this sentence: 
+    ----
+    {context}
+    ----
+    The response must be in json format, 
+    with the keys being the words and the values being the translations.
+    The response must be AS CONCISE AS POSSIBLE and NOT include any pinyin.
+    The response must NOT contain the translation of entire sentence.
+    """
+    result = query_gpt3(prompt)
+    result=clean_json_result(result)
     return result
 
 def process_subtitle(subs, word_judge, target_language):
