@@ -10,7 +10,8 @@ def init_nltk():
         nltk.download('punkt')
 
 # 创建基于Brown语料库的词汇频率分布
-init_nltk()
+# init_nltk()
+nltk.download() 
 freq_dist = nltk.FreqDist(w.lower() for w in brown.words())
 
 # 使用nltk进行分词
