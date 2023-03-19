@@ -1,33 +1,60 @@
 import streamlit as st
-# from argparse import ArgumentParser
-from io import StringIO
 from sub_word import process_subtitle
-import openai 
+import openai
+import pysubs2
+import tempfile
+import os
+from pathlib import Path
+
 
 st.title("字幕生词翻译器")
 
-col1,col2=st.columns(2)
-# 上传输入文件
+col1, col2 = st.columns(2)
 openai_api_key = col2.text_input("OpenAI API Key", type="password")
 if openai_api_key:
     openai.api_key = openai_api_key
 input_file = col1.file_uploader("上传字幕文件", type=["srt"])
 
-st.markdown("词频等级，数字越小越难")
-difficulty = st.slider("词频等级", min_value=1, max_value=50, value=35, step=1)
-target_language = st.selectbox("目标语言",["Simplified Chinese"])
+st.markdown("NLTK词频等级")
+st.info("数字越小越难")
+difficulty = st.slider("", min_value=1, max_value=50, value=35, step=1)
+target_language = st.selectbox("目标语言", ["Simplified Chinese"])
 
 translate_button = st.button("翻译")
 if input_file and translate_button:
-    # input_subtitle = StringIO(input_file.getvalue().decode("utf-8"))
     input_subtitle = input_file.read().decode("utf-8")
+
+    temp_input_fd, temp_input_path = tempfile.mkstemp()
+    with open(temp_input_path, 'w', encoding="utf-8") as temp_input_file:
+        temp_input_file.write(input_subtitle)
+    
+    input_subs = pysubs2.SSAFile.load(temp_input_path, encoding="utf-8")
+    os.close(temp_input_fd)
+    os.unlink(temp_input_path)
 
     # 处理字幕
     with st.spinner("字幕处理中..."):
-        output_subtitle = process_subtitle(input_subtitle, difficulty, target_language)
-    # print(output_subtitle)
-    output_filename=input_file.name.replace(".srt","_processed.srt")
+        output_subs = process_subtitle(input_subs, difficulty, target_language)
+
+    # 获取输入文件的扩展名
+    input_file_ext = Path(input_file.name).suffix
+
+    # 创建输出文件的临时文件描述符和路径，使用输入文件的扩展名
+    temp_output_fd, temp_output_path = tempfile.mkstemp(suffix=input_file_ext)
+
+    # 保存输出字幕到临时文件
+    output_subs.save(temp_output_path, encoding="utf-8")
+
+    # 读取输出字幕文件内容
+    with open(temp_output_path, 'r', encoding="utf-8") as output_file:
+        output_subtitle = output_file.read()
+
+    # 关闭临时文件描述符并删除临时文件
+    os.close(temp_output_fd)
+    os.unlink(temp_output_path)
+
+    output_filename = "annotated_"+input_file.name
     # 使用 download_button 提供下载链接
-    st.download_button("下载处理后字幕", 
-                       output_subtitle, 
+    st.download_button("下载处理后字幕",
+                       output_subtitle,
                        output_filename)
