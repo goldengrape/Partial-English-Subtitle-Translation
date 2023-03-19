@@ -5,8 +5,11 @@ import pysubs2
 import tempfile
 import os
 from pathlib import Path
-from utils import lang_list
+from utils import lang_list,init_nltk
+import nltk
 
+nltk.download()
+# init_nltk()
 
 st.title("字幕生词翻译器")
 

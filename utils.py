@@ -1,24 +1,16 @@
 import nltk
 from nltk.corpus import brown
 
-if not nltk.corpus.brown.fileids():
-    nltk.download('brown')
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
-
-import nltk
-from nltk.corpus import brown
-
-if not nltk.corpus.brown.fileids():
-    nltk.download('brown')
-try:
-    nltk.data.find('tokenizers/punkt')
-except LookupError:
-    nltk.download('punkt')
+def init_nltk():
+    if not nltk.corpus.brown.fileids():
+        nltk.download('brown')
+    try:
+        nltk.data.find('tokenizers/punkt')
+    except LookupError:
+        nltk.download('punkt')
 
 # 创建基于Brown语料库的词汇频率分布
+init_nltk()
 freq_dist = nltk.FreqDist(w.lower() for w in brown.words())
 
 # 使用nltk进行分词
@@ -41,6 +33,8 @@ exclude_words=set(
      'go','goes','going','gone','get','gets','getting','got','gotten',
      'went','come','comes','coming','came',
      'fnMicrosoft', 'YaHei',
+     'wan','gon',
+     'fuck'
      ]
     )
 
