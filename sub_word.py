@@ -3,7 +3,7 @@ import re
 import argparse
 import os 
 import time 
-from utils import is_difficult_word, exclude_words
+from utils import tokenize_word,is_difficult_word, exclude_words
 import pysubs2
 
 
@@ -48,13 +48,16 @@ def word_unknown(word_query, word_judge):
     return ((tag_chk+collins_chk+bnc_chk+frq_chk) >=3 or length_chk)
 
 def identify_rare_words(text, word_judge):
-    words = re.findall(r'\b\w+\b', text)
-    # sdict=DictCsv("ecdict.csv")
+    # words = re.findall(r'\b\w+\b', text)
+    words=tokenize_word(text)
     rare_words=[]
     for word in words:
-        if ((word.isdigit()) or
-            (word.lower() in exclude_words) or
-            (len(word)<=2)
+        if ((word.lower() in exclude_words) or
+            (len(word)<=2) or 
+            # 如果包含有数字
+            (any(char.isdigit() for char in word)) or
+            # 如果包含有特殊字符
+            (any(not char.isalnum() for char in word)) 
             ):
             continue
         if is_difficult_word(word,word_judge):
@@ -93,14 +96,19 @@ def translate_word(word, context, target_language="Chinese"):
         time.sleep(30)
         result = query_gpt3(prompt)
     result=clean_result(result)
-    print(f"Translation of '{word}': {result}")
+    # print(f"Translation of '{word}': {result}")
     return result
 
 def process_subtitle(subs, word_judge, target_language):
     for line in subs:
         text = line.text
+        # 删除\\N
+        text = re.sub(r'\\N', ' ', text)
+        print(text)
         rare_words = identify_rare_words(text, word_judge)
-
+        if len(rare_words) == 0:
+            continue
+        print(rare_words)
         annotated_text = text
         for word in rare_words:
             # word_but_no_translate = rf'^(?=.*\b{word}\b)(?!.*\b{word}\().*$'
@@ -120,6 +128,7 @@ def process_subtitle(subs, word_judge, target_language):
                     sentence, annotated_sentence)
 
         line.text = annotated_text
+        print(annotated_text)
 
     return subs
 
