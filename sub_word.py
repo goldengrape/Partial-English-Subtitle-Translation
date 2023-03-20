@@ -7,6 +7,7 @@ from utils import tokenize_word,is_difficult_word, exclude_words, identify_rare_
 from utils import parse_json_from_text
 import pysubs2
 import json 
+import tqdm
 # import backoff 
 
 def clean_result(result,N=10):
@@ -49,6 +50,8 @@ def translate_rare_words_together(words, context, target_language="Chinese"):
     return result
 
 def process_subtitle(subs, word_judge, target_language):
+    total_lines=len(subs)
+    pbar=tqdm.tqdm(total=total_lines)
     for line in subs:
         start_time_line= time.time()
 
@@ -81,11 +84,13 @@ def process_subtitle(subs, word_judge, target_language):
                 flags=re.IGNORECASE
             )
         line.text = annotated_text
+        pbar.update(1)
+
         # print(annotated_text)
         # print(f"Time for annotation: {time.time()-annotation_timer}")
 
         # print(f"Time for this line: {time.time()-start_time_line}")
-
+    pbar.close()
     return subs
 
 
