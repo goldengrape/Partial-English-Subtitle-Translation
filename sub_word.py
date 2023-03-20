@@ -3,53 +3,11 @@ import re
 import argparse
 import os 
 import time 
-from utils import tokenize_word,is_difficult_word, exclude_words
+from utils import tokenize_word,is_difficult_word, exclude_words, identify_rare_words,query_gpt3
+from utils import parse_json_from_text
 import pysubs2
 import json 
-
-sleep_time = 60
-
-def query_gpt3(prompt):
-    global sleep_time
-    while True:
-        try:
-            response = openai.ChatCompletion.create(
-                model="gpt-3.5-turbo", 
-                messages=[{
-                "role": "user", 
-                "content": prompt}]
-                )
-            answer=response.choices[0].message.content.strip()
-            time.sleep(1)
-            sleep_time = int(sleep_time/2)
-            sleep_time = max(sleep_time, 10)
-            break
-        except:
-            print(f"GPT-3 API error, retrying in {sleep_time} seconds...")
-            time.sleep(sleep_time)
-            sleep_time += 10
-            if sleep_time > 120:
-                print("GPT-3 API error, aborting...")
-                answer=""
-                break
-    return answer
-
-def identify_rare_words(text, word_judge):
-    # words = re.findall(r'\b\w+\b', text)
-    words=tokenize_word(text)
-    rare_words=[]
-    for word in words:
-        if ((word.lower() in exclude_words) or
-            (len(word)<=2) or 
-            # 如果包含有数字
-            (any(char.isdigit() for char in word)) or
-            # 如果包含有特殊字符
-            (any(not char.isalnum() for char in word)) 
-            ):
-            continue
-        if is_difficult_word(word,word_judge):
-            rare_words.append(word)
-    return rare_words
+# import backoff 
 
 def clean_result(result,N=10):
     # 去除括号内的内容
@@ -64,48 +22,12 @@ def clean_result(result,N=10):
         return ""
     return result
 
-def translate_word(word, context, 
-                   target_language="Chinese",
-                    sleep_time=60):
-    prompt = f"""
-    Please give me the MOST APPROPRIATE {target_language} meaning of the word '{word}' IN this sentence: 
-    ----
-    {context}
-    ----
-    The response must be AS CONCISE AS POSSIBLE and NOT include any pinyin. 
-    The response must be in the form of a single word or a short phrase.
-    The response must be in {target_language}.
-    The response must only be the meaning of the word in the sentence, not the entire sentence's meaning.
-    If unable to translate, please return 'x'.
-    """
-    result = query_gpt3(prompt)
-    result=clean_result(result)
-    # print(f"Translation of '{word}': {result}")
-    return result
-
-def parse_json_from_text(text):
-    # 使用正则表达式匹配 JSON 字符串
-    match = re.search(r'{[^{}]*}', text, re.DOTALL)
-
-    if match:
-        # 提取 JSON 字符串部分
-        json_str = match.group()
-
-        # 解析 JSON 字符串成 Python 字典
-        data = json.loads(json_str)
-
-        return data
-    else:
-        print('未找到 JSON 字符串')
-        return None
-    
-
 def clean_json_result(result):
     # 从result中提取出字典
     dict=parse_json_from_text(result)
     for key in dict.keys():
         dict[key]=clean_result(dict[key])
-    return result
+    return dict
 
 def translate_rare_words_together(words, context, target_language="Chinese"):
     prompt = f"""
@@ -119,41 +41,53 @@ def translate_rare_words_together(words, context, target_language="Chinese"):
     The response must NOT contain the translation of entire sentence.
     """
     result = query_gpt3(prompt)
+    clean_timer=time.time()
     result=clean_json_result(result)
+    # print(f"clean result time: {time.time()-clean_timer}")
+    # print(f"Translation of '{words}': {result}")
+    # print(f"type of result: {type(result)}")
     return result
 
 def process_subtitle(subs, word_judge, target_language):
     for line in subs:
+        start_time_line= time.time()
+
+        # 读取字幕，并清洗
         text = line.text
         # 删除\\N
         text = re.sub(r'\\N', ' ', text)
-        print(text)
+        # print(text)
+
+        # 找出生词
         rare_words = identify_rare_words(text, word_judge)
+        
         if len(rare_words) == 0:
             continue
-        print(rare_words)
+        # print(rare_words)
+        
+        # 翻译生词
+        translation_timer=time.time()
+        translations = translate_rare_words_together(rare_words, text, target_language)
+        # print(f"Time for translation: {time.time()-translation_timer}")
+        
+        # 替换文本
+        # annotation_timer=time.time()
         annotated_text = text
-        for word in rare_words:
-            # word_but_no_translate = rf'^(?=.*\b{word}\b)(?!.*\b{word}\().*$'
-            for i in range(5):
-                sentences_with_word_but_no_translate = re.findall(
-                    rf'.*{word}[^\(]+.*', annotated_text, flags=re.IGNORECASE)
-                if len(sentences_with_word_but_no_translate) == 0:
-                    break
-                sentence = sentences_with_word_but_no_translate[0]
-                translation = translate_word(word, sentence, target_language)
-                if translation == "":
-                    continue
-                annotated_sentence = sentence
-                annotated_sentence = annotated_sentence.replace(
-                    word, f"{word}({translation})")
-                annotated_text = annotated_text.replace(
-                    sentence, annotated_sentence)
-
+        for word, translation in translations.items():
+            annotated_text = re.sub(
+                rf'(?<!\()(\b{word}\b)(?!\))',
+                rf'\g<1>({translation})',
+                annotated_text,
+                flags=re.IGNORECASE
+            )
         line.text = annotated_text
-        print(annotated_text)
+        # print(annotated_text)
+        # print(f"Time for annotation: {time.time()-annotation_timer}")
+
+        # print(f"Time for this line: {time.time()-start_time_line}")
 
     return subs
+
 
 def create_parser():
     parser = argparse.ArgumentParser(description="A subtitle processing program that annotates rare English words with their Chinese translations.")
@@ -177,10 +111,6 @@ def main():
 
     print(f"Processed subtitle saved to {args.output_filename}")
 
-if __name__ == "__main__":
-    # Set your GPT-3 API key
-    # global sleep_time
-    # sleep_time=60
-
+if __name__ == "__main__":  
     openai.api_key = os.environ.get("OPENAI_API_KEY")
     main()
