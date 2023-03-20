@@ -86,12 +86,15 @@ def parse_json_from_text(text):
         json_str = match.group()
 
         # 解析 JSON 字符串成 Python 字典
-        data = json.loads(json_str)
-
+        try:
+            data = json.loads(json_str)
+        except json.decoder.JSONDecodeError:
+            print('JSON 字符串解析失败')
+            return {"":""}
         return data
     else:
         print('未找到 JSON 字符串')
-        return None
+        return {"":""}
 
 
 exclude_words=set(
